@@ -180,7 +180,7 @@ func originalUrlHttp(w http.ResponseWriter, r *http.Request) {
 func main() {
 	gm := goway.Bootstrap()
 	storageType := gm.Configs.Get("storageType")
-	log.Println("storageType:", storageType)
+	log.Println("storageType: ", storageType)
 	switch storageType {
 	case "in-memory":
 		storage = newInMemoryStorage()
