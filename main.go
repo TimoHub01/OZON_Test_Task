@@ -1,4 +1,4 @@
-package main
+package OZON_Test_Task
 
 import (
 	"database/sql"
