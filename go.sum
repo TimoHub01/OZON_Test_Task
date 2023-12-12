@@ -1,3 +1,4 @@
+github.com/lib/pq v1.10.8/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
 github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
 github.com/lib/pq v1.10.9/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
 github.com/wackonline/goway v0.0.0-20170522071248-7b8a158f46ad h1:AuZx7B32ZhOdKIf0WQLr1CKg7HmzPc8L7NzVPEINTZs=
