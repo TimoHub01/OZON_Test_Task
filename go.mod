@@ -1,4 +1,4 @@
-module OZON_test_task
+module OZON_test_task/v2
 
 go 1.21
 
