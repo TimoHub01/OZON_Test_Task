@@ -1,4 +1,4 @@
-module OZON_test_task/v2
+module 	github.com/TimoHub01/OZON_Test_Task/v2
 
 go 1.21
 
