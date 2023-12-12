@@ -5,39 +5,43 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "github.com/lib/pq"
+	"github.com/wackonline/goway"
+	_ "github.com/wackonline/goway"
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"strings"
 )
 
+var storage Storage
+
 // Storage интерфейс определяет методы для работы с хранилищем
 type Storage interface {
-	ShortenURL(longURL string) (string, error)
-	GetOriginalURL(shortURL string) (string, error)
+	shortenUrl(longUrl string) (string, error)
+	getOriginalUrl(shortUrl string) (string, error)
 }
 
 // InMemoryStorage реализует Storage интерфейс для in-memory хранилища
 type InMemoryStorage struct {
-	urls map[string]string
+	Urls map[string]string
 }
 
-// PostgreSQLStorage реализует Storage интерфейс для PostgreSQL хранилища
-type PostgreSQLStorage struct {
-	db *sql.DB
+// PostgresStorage реализует Storage интерфейс для PostgreSQL хранилища
+type PostgresStorage struct {
+	Db *sql.DB
 }
 
-// NewInMemoryStorage создает новый экземпляр InMemoryStorage
-func NewInMemoryStorage() *InMemoryStorage {
+// newInMemoryStorage создает новый экземпляр InMemoryStorage
+func newInMemoryStorage() *InMemoryStorage {
 	return &InMemoryStorage{
-		urls: make(map[string]string),
+		Urls: make(map[string]string),
 	}
 }
 
-// NewPostgreSQLStorage создает новый экземпляр PostgreSQLStorage
-func NewPostgreSQLStorage() (*PostgreSQLStorage, error) {
+// newPostgresStorage создает новый экземпляр PostgreSQLStorage
+func newPostgresStorage() (*PostgresStorage, error) {
 	db, err := sql.Open("postgres", "host=postgres user=user dbname=ozon_db port=5432 password=1234 sslmode=disable")
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -50,132 +54,138 @@ func NewPostgreSQLStorage() (*PostgreSQLStorage, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &PostgreSQLStorage{db: db}, nil
+	return &PostgresStorage{Db: db}, nil
 }
 
-func (s *PostgreSQLStorage) urlExists(longURL string) bool {
+func (s *PostgresStorage) urlExists(longUrl string) bool {
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM urls WHERE long_url = $1", longURL).Scan(&count)
+	err := s.Db.QueryRow("SELECT COUNT(*) FROM urls WHERE long_url = $1", longUrl).Scan(&count)
 	if err != nil {
 		return false
 	}
 	return count > 0
 }
 
-func (s *InMemoryStorage) urlExists(longURL string) bool {
-	_, exists := s.urls[longURL]
+func (s *InMemoryStorage) urlExists(longUrl string) bool {
+	_, exists := s.Urls[longUrl]
 	return exists
 }
 
-// ShortenURL добавляет URL в хранилище и возвращает короткий URL
-func (s *InMemoryStorage) ShortenURL(longURL string) (string, error) {
-
-	if _, exists := s.urls[longURL]; exists {
-		return "", fmt.Errorf("this URL already exists in in-memory: %s", longURL)
+// shortenUrl добавляет URL в хранилище и возвращает короткий URL
+func (s *InMemoryStorage) shortenUrl(longUrl string) (string, error) {
+	if _, exists := s.Urls[longUrl]; exists {
+		return "", fmt.Errorf("this URL already exists in in-memory: %s", longUrl)
 	}
-	shortURL := generateShortURL()
-	shortURL = "https://" + shortURL + ".com"
-	s.urls[longURL] = shortURL
-	return shortURL, nil
+	shortUrl := generateShortUrl()
+	shortUrl = "https://" + shortUrl + ".com"
+	s.Urls[longUrl] = shortUrl
+	return shortUrl, nil
 }
 
-// GetOriginalURL возвращает оригинальный URL по короткому URL
-func (s *InMemoryStorage) GetOriginalURL(shortURL string) (string, error) {
-
-	for key, value := range s.urls {
-		if value == "https://"+shortURL+".com" {
+// getOriginalUrl возвращает оригинальный URL по короткому URL
+func (s *InMemoryStorage) getOriginalUrl(shortUrl string) (string, error) {
+	for key, value := range s.Urls {
+		if value == "https://"+shortUrl+".com" {
 			return key, nil
 		}
 	}
-	return "", fmt.Errorf("short URL %s not found in Memory", shortURL)
+	return "", fmt.Errorf("short URL %s not found in Memory", shortUrl)
 }
 
-// ShortenURL добавляет URL в хранилище и возвращает короткий URL
-func (s *PostgreSQLStorage) ShortenURL(longURL string) (string, error) {
-
-	shortURL := generateShortURL()
-	shortURL = "https://" + shortURL + ".com"
-	if !s.urlExists(longURL) {
-		_, err := s.db.Exec("INSERT INTO urls (long_url, short_url) VALUES ($1, $2)", longURL, shortURL)
+// shortenUrl добавляет URL в хранилище и возвращает короткий URL
+func (s *PostgresStorage) shortenUrl(longUrl string) (string, error) {
+	shortUrl := generateShortUrl()
+	shortUrl = "https://" + shortUrl + ".com"
+	if !s.urlExists(longUrl) {
+		_, err := s.Db.Exec("INSERT INTO urls (long_url, short_url) VALUES ($1, $2)", longUrl, shortUrl)
 		if err != nil {
 			return "", err
 		}
-		return shortURL, nil
+		return shortUrl, nil
 	} else {
-		return "", fmt.Errorf("his URL already exists in DataBase: %s", longURL)
+		return "", fmt.Errorf("this URL already exists in DataBase: %s", longUrl)
 	}
 
 }
 
-// GetOriginalURL возвращает оригинальный URL по короткому URL
-func (s *PostgreSQLStorage) GetOriginalURL(shortURL string) (string, error) {
-	var longURL string
-	err := s.db.QueryRow("SELECT long_url FROM urls WHERE short_url = $1", "https://"+shortURL+".com").Scan(&longURL)
+// getOriginalUrl возвращает оригинальный URL по короткому URL
+func (s *PostgresStorage) getOriginalUrl(shortUrl string) (string, error) {
+	var longUrl string
+	err := s.Db.QueryRow("SELECT long_url FROM urls WHERE short_url = $1", "https://"+shortUrl+".com").Scan(&longUrl)
 	if err != nil {
-		return "", fmt.Errorf("ShortURL not found in PostgreSQL")
+		return "", fmt.Errorf("ShortUrl not found in PostgreSQL")
 	}
-	return longURL, nil
+	return longUrl, nil
 }
 
-func generateShortURL() string {
+func generateShortUrl() string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
-	shortURL := ""
+	shortUrl := ""
 	for i := 0; i < 10; i++ {
-		shortURL += string(charset[rand.Intn(len(charset))])
+		shortUrl += string(charset[rand.Intn(len(charset))])
 	}
-	return shortURL
+	return shortUrl
 }
 
-func shortenURL(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		LongURL string `json:"long_url"`
+func shortenUrlHttp(w http.ResponseWriter, r *http.Request) {
+	var Input struct {
+		LongUrl string `json:"long_url"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&input); err != nil {
+	if err := decoder.Decode(&Input); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	shortURL, err := storage.ShortenURL(input.LongURL)
+	shortUrl, err := storage.shortenUrl(Input.LongUrl)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	response := map[string]string{"short_url": shortURL}
+	response := map[string]string{"short_url": shortUrl}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		log.Println("Error:", err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
 }
 
-func originalURL(w http.ResponseWriter, r *http.Request) {
-	shortURL := strings.TrimPrefix(r.URL.Path, "/short/")
-	log.Println("Requested short URL:", shortURL)
+func originalUrlHttp(w http.ResponseWriter, r *http.Request) {
+	shortUrl := strings.TrimPrefix(r.URL.Path, "/short/")
+	log.Println("Requested short URL:", shortUrl)
 
-	longURL, err := storage.GetOriginalURL(shortURL)
+	longUrl, err := storage.getOriginalUrl(shortUrl)
 	if err != nil {
 		log.Println("Error:", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
-	log.Println("Redirecting to long URL:", longURL)
+	log.Println("Redirecting to long URL:", longUrl)
 	// Возвращаем JSON с long_url
-	response := map[string]string{"long_url": longURL}
+	response := map[string]string{"long_url": longUrl}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		log.Println("Error:", err)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
 }
 
-var storage Storage
-
 func main() {
-	storageType := os.Getenv("STORAGE_TYPE")
+	gm := goway.Bootstrap()
+	storageType := gm.Configs.Get("storageType")
 	log.Println("storageType:", storageType)
 	switch storageType {
 	case "in-memory":
-		storage = NewInMemoryStorage()
+		storage = newInMemoryStorage()
 	case "postgres":
-		db, err := NewPostgreSQLStorage()
+		db, err := newPostgresStorage()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -183,13 +193,7 @@ func main() {
 	default:
 		log.Fatal("Unknown storage type")
 	}
-
-	http.HandleFunc("/shorten", shortenURL)
-	http.HandleFunc("/short/", originalURL)
-
-	port := "8080"
-	addr := fmt.Sprintf(":%s", port)
-
-	log.Println("Server is running on", addr)
-	log.Fatal(http.ListenAndServe(addr, nil))
+	gm.Post("/shorten", shortenUrlHttp)
+	gm.Get("/short", originalUrlHttp)
+	gm.Run()
 }

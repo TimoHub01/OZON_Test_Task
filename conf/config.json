@@ -1,0 +1,15 @@
+{
+  "version":"0.0.1",
+
+  "debug":true,
+
+  "logger":"E_ALL",
+
+  "env":"development",
+
+  "storageType":"postgres",
+
+  "httpServer":"0.0.0.0",
+
+  "serverPort":"8080"
+}

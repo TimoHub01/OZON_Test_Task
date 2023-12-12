@@ -23,4 +23,3 @@ services:
       DB_USER: user
       DB_PASSWORD: 1234
       DB_NAME: ozon_db
-      STORAGE_TYPE: ${STORAGE_TYPE:-postgres}
